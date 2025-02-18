@@ -1,0 +1,167 @@
+loadstring(game:HttpGet('https://raw.githubusercontent.com/drillygzzly/Roblox-UI-Libs/main/Yun%20V2%20Lib/Yun%20V2%20Lib%20Source.lua'))()
+
+local Library = initLibrary()
+local Window = Library:Load({name = "exzile", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
+
+local Tab = Window:Tab("Aiming")
+local Tab2 = Window:Tab("Visuals")
+
+local Aimingsec1 = Tab:Section{name = "Aim Assist", column = 1}
+local Visualssec1 = Tab2:Section{name = "Wallhacks", column = 1}
+
+-- 📦 Serviços do Roblox
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ⚙️ Configurações do Aimbot
+local AimbotEnabled = false
+local AimPart = "Head"
+local Smoothing = 3
+local FOVSize = 100
+local FOVVisible = true
+local AimbotKey = Enum.KeyCode.E -- Tecla padrão (E)
+local HoldingKey = false
+
+-- Lista de teclas e botões do mouse para ativar o Aimbot
+local AvailableKeys = {
+    ["E"] = Enum.KeyCode.E,
+    ["Q"] = Enum.KeyCode.Q,
+    ["R"] = Enum.KeyCode.R,
+    ["F"] = Enum.KeyCode.F,
+    ["T"] = Enum.KeyCode.T,
+    ["G"] = Enum.KeyCode.G,
+    ["V"] = Enum.KeyCode.V,
+    ["X"] = Enum.KeyCode.X,
+    ["Z"] = Enum.KeyCode.Z,
+    ["C"] = Enum.KeyCode.C,
+    ["Mouse1"] = Enum.UserInputType.MouseButton1, -- Botão esquerdo
+    ["Mouse2"] = Enum.UserInputType.MouseButton2  -- Botão direito
+}
+
+-- Criar o círculo do FOV
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 1
+FOVCircle.Transparency = 0.5
+FOVCircle.NumSides = 64
+FOVCircle.Filled = false
+FOVCircle.Radius = FOVSize
+FOVCircle.Visible = FOVVisible
+
+local function GetClosestPlayer()
+    local Target = nil
+    local MaxDist = FOVSize
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local TargetPart = player.Character:FindFirstChild(AimPart)
+            if TargetPart then
+                local ScreenPos, OnScreen = Camera:WorldToScreenPoint(TargetPart.Position)
+                if OnScreen then
+                    local Distance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPos.X, ScreenPos.Y)).Magnitude
+                    if Distance < MaxDist then
+                        MaxDist = Distance
+                        Target = player
+                    end
+                end
+            end
+        end
+    end
+    return Target
+end
+
+-- Eventos para detectar quando a tecla ou botão do mouse é pressionado/solto
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == AimbotKey or input.UserInputType == AimbotKey then
+        HoldingKey = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == AimbotKey or input.UserInputType == AimbotKey then
+        HoldingKey = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    -- Atualiza a posição e visibilidade do FOV
+    FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+    FOVCircle.Radius = FOVSize
+    FOVCircle.Visible = FOVVisible
+
+    -- Lógica do Aimbot
+    if AimbotEnabled and HoldingKey then
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild(AimPart) then
+            local targetPos = target.Character[AimPart].Position
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), Smoothing / 10)
+        end
+    end
+end)
+
+-- Toggle do Aimbot
+Aimingsec1:Toggle {
+    Name = "Enabled",
+    flag = "aimbot_toggle", 
+    callback = function(bool)
+        AimbotEnabled = bool
+    end
+}
+
+-- Slider para suavização (Smoothing)
+Aimingsec1:Slider {
+    Name = "Smoothing",
+    Default = 3,
+    Min = 1,
+    Max = 30,
+    Decimals = 1,
+    Flag = "aimbot_smoothing",
+    callback = function(value)
+        Smoothing = value
+    end
+}
+
+-- Dropdown para escolher a parte do corpo a mirar
+Aimingsec1:dropdown {
+    name = "Aim",
+    content = {"Head", "Torso", "HumanoidRootPart", "Right Arm", "Left Arm"},
+    multichoice = false,
+    callback = function(selection)
+        AimPart = selection
+    end
+}
+
+-- Toggle para mostrar/ocultar o FOV
+Aimingsec1:Toggle {
+    Name = "Show FOV",
+    flag = "fov_toggle", 
+    callback = function(bool)
+        FOVVisible = bool
+    end
+}
+
+-- Slider para ajustar o tamanho do FOV
+Aimingsec1:Slider {
+    Name = "FOV Size",
+    Default = 100,
+    Min = 20,
+    Max = 300,
+    Decimals = 1,
+    Flag = "fov_size",
+    callback = function(value)
+        FOVSize = value
+    end
+}
+
+-- Dropdown para escolher a tecla/botão de ativação do Aimbot
+Aimingsec1:dropdown {
+    name = "Aimbot Key",
+    content = {"E", "Q", "R", "F", "T", "G", "V", "X", "Z", "C", "Mouse1", "Mouse2"},
+    multichoice = false,
+    callback = function(selectedKey)
+        AimbotKey = AvailableKeys[selectedKey] -- Define a nova tecla ou botão do mouse
+    end
+}
