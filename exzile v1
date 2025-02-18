@@ -1,3 +1,4 @@
+---@diagnostic disable: unused-function, unused-local
 loadstring(game:HttpGet('https://raw.githubusercontent.com/drillygzzly/Roblox-UI-Libs/main/Yun%20V2%20Lib/Yun%20V2%20Lib%20Source.lua'))()
 
 local Library = initLibrary()
@@ -102,6 +103,113 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+local function GetClosestPlayer()
+    local MaximumDistance = _G.CircleRadius
+    local Target = nil
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local TargetPart = player.Character:FindFirstChild(_G.AimPart)
+            if TargetPart then
+                local ScreenPos, OnScreen = Camera:WorldToScreenPoint(TargetPart.Position)
+                if OnScreen then
+                    local Distance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPos.X, ScreenPos.Y)).Magnitude
+                    if Distance < MaximumDistance then
+                        MaximumDistance = Distance
+                        Target = player
+                    end
+                end
+            end
+        end
+    end
+    return Target
+end
+
+local ESPEnabled = false  -- Controle de ativação do ESP
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- Tabela para armazenar as caixas de cada jogador
+local ESPBoxes = {}
+
+-- Função para desenhar o Box
+local function DrawESP(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local box = nil
+
+        -- Criando o Box se o ESP estiver ativado
+        if ESPEnabled then
+            box = Drawing.new("Square")
+            box.Color = Color3.fromRGB(255, 0, 0)  -- Cor do Box (vermelho)
+            box.Thickness = 2
+            box.Filled = false
+            box.Visible = false
+        end
+
+        -- Armazenando a caixa do jogador na tabela
+        ESPBoxes[player] = box
+
+        -- Atualiza a posição do Box e o tamanho, se o ESP estiver ativado
+        RunService.RenderStepped:Connect(function()
+            if ESPEnabled and box then
+                local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    local screenPos, onScreen = Camera:WorldToScreenPoint(humanoidRootPart.Position)
+                    if onScreen then
+                        local head = player.Character:FindFirstChild("Head")
+                        if head then
+                            local headPos, onScreenHead = Camera:WorldToScreenPoint(head.Position)
+                            if onScreenHead then
+                                local boxSize = Vector2.new(100, math.abs(screenPos.Y - headPos.Y))
+                                box.Position = Vector2.new(screenPos.X - boxSize.X / 2, headPos.Y - boxSize.Y)
+                                box.Size = boxSize
+                                box.Visible = true
+                            end
+                        end
+                    else
+                        box.Visible = false
+                    end
+                end
+            else
+                -- Se o ESP estiver desativado, remove o box da tela
+                if box then
+                    box.Visible = false
+                end
+            end
+        end)
+    end
+end
+
+-- Função para limpar os Boxes quando o ESP for desativado
+local function ClearESP()
+    for player, box in pairs(ESPBoxes) do
+        if box then
+            box.Visible = false  -- Esconde a caixa
+        end
+    end
+    ESPBoxes = {}  -- Limpa a tabela de caixas
+end
+
+-- Função para atualizar o ESP para todos os jogadores
+local function UpdateESP()
+    if ESPEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                player.CharacterAdded:Connect(function()
+                    DrawESP(player)  -- Aplica o ESP ao novo jogador que entra no jogo
+                end)
+                if player.Character then
+                    DrawESP(player)  -- Aplica o ESP ao jogador já presente
+                end
+            end
+        end
+    else
+        ClearESP()  -- Limpa os ESPs quando desativado
+    end
+end
+
 -- Toggle do Aimbot
 Aimingsec1:Toggle {
     Name = "Enabled",
@@ -116,7 +224,7 @@ Aimingsec1:Slider {
     Name = "Smoothing",
     Default = 3,
     Min = 1,
-    Max = 30,
+    Max = 10,
     Decimals = 1,
     Flag = "aimbot_smoothing",
     callback = function(value)
@@ -165,3 +273,21 @@ Aimingsec1:dropdown {
         AimbotKey = AvailableKeys[selectedKey] -- Define a nova tecla ou botão do mouse
     end
 }
+-- Toggle para ativar/desativar o ESP
+Visualssec1:Toggle {
+    Name = "Enable ESP (Box)",
+    flag = "esp_toggle",
+    callback = function(bool)
+        ESPEnabled = bool
+        UpdateESP()
+    end
+}
+
+-- Atualiza o ESP sempre que um jogador entra no jogo
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPEnabled then
+            DrawESP(player)  -- Aplica o ESP ao novo jogador
+        end
+    end)
+end)
