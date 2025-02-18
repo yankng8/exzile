@@ -1,6 +1,11 @@
 ---@diagnostic disable: unused-function, unused-local
 loadstring(game:HttpGet('https://raw.githubusercontent.com/drillygzzly/Roblox-UI-Libs/main/Yun%20V2%20Lib/Yun%20V2%20Lib%20Source.lua'))()
 
+local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
+
+
+notif:Notification("EXZILE Beta","Loading","GothamSemibold","Gotham",5) -- title: <string> description: <string> title font: <string> description font: <string> notification show time: <number>
+
 local Library = initLibrary()
 local Window = Library:Load({name = "exzile", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
 
