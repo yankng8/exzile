@@ -4,10 +4,10 @@ loadstring(game:HttpGet('https://raw.githubusercontent.com/drillygzzly/Roblox-UI
 local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
 
 
-notif:Notification("EXZILE Beta","Loading","GothamSemibold","Gotham",5) -- title: <string> description: <string> title font: <string> description font: <string> notification show time: <number>
+notif:Notification("EXZILE Dev Version","Loading","GothamSemibold","Gotham",5) -- title: <string> description: <string> title font: <string> description font: <string> notification show time: <number>
 
 local Library = initLibrary()
-local Window = Library:Load({name = "exzile", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
+local Window = Library:Load({name = "exzile dev version", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
 
 local Tab = Window:Tab("Aiming")
 local Tab2 = Window:Tab("Visuals")
@@ -129,91 +129,70 @@ local function GetClosestPlayer()
     return Target
 end
 
-local ESPEnabled = false  -- Controle de ativação do ESP
+-- 🔴 Configurações do ESP
+_G.ESPEnabled = false
+_G.ESPColor = Color3.fromRGB(255, 0, 0)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
-
--- Tabela para armazenar as caixas de cada jogador
 local ESPBoxes = {}
 
--- Função para desenhar o Box
-local function DrawESP(player)
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local box = nil
+-- 🖌️ Criar e atualizar ESP Box
+local function CreateESP(player)
+    if ESPBoxes[player] then return end  -- Evita duplicatas
 
-        -- Criando o Box se o ESP estiver ativado
-        if ESPEnabled then
-            box = Drawing.new("Square")
-            box.Color = Color3.fromRGB(255, 0, 0)  -- Cor do Box (vermelho)
-            box.Thickness = 2
-            box.Filled = false
-            box.Visible = false
+    local box = Drawing.new("Square")
+    box.Color = _G.ESPColor
+    box.Thickness = 1
+    box.Filled = false
+    box.Transparency = 0.8
+    box.Visible = false
+
+    ESPBoxes[player] = box
+end
+
+-- 🗑️ Remover ESP Box quando desativado
+local function RemoveESP()
+    for _, box in pairs(ESPBoxes) do
+        if box then
+            box:Remove()
         end
+    end
+    ESPBoxes = {}  -- Limpa a tabela
+end
 
-        -- Armazenando a caixa do jogador na tabela
-        ESPBoxes[player] = box
+-- 🔄 Loop de atualização do ESP
+RunService.RenderStepped:Connect(function()
+    if not _G.ESPEnabled then
+        RemoveESP()
+        return
+    end
 
-        -- Atualiza a posição do Box e o tamanho, se o ESP estiver ativado
-        RunService.RenderStepped:Connect(function()
-            if ESPEnabled and box then
-                local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    local screenPos, onScreen = Camera:WorldToScreenPoint(humanoidRootPart.Position)
-                    if onScreen then
-                        local head = player.Character:FindFirstChild("Head")
-                        if head then
-                            local headPos, onScreenHead = Camera:WorldToScreenPoint(head.Position)
-                            if onScreenHead then
-                                local boxSize = Vector2.new(100, math.abs(screenPos.Y - headPos.Y))
-                                box.Position = Vector2.new(screenPos.X - boxSize.X / 2, headPos.Y - boxSize.Y)
-                                box.Size = boxSize
-                                box.Visible = true
-                            end
-                        end
-                    else
-                        box.Visible = false
-                    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
+            local rootPart = player.Character.HumanoidRootPart
+            local head = player.Character.Head
+
+            local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+            local headPos, _ = Camera:WorldToViewportPoint(head.Position)
+
+            if onScreen then
+                local box = ESPBoxes[player] or CreateESP(player)
+
+                local height = math.abs(rootPos.Y - headPos.Y) * 2  -- Ajuste de altura da box
+                local width = height * 0.5  -- Largura proporcional ao corpo
+                local xPos = rootPos.X - (width / 2)
+                local yPos = rootPos.Y - (height / 2)
+
+                if box then
+                    box.Size = Vector2.new(width, height)
+                    box.Position = Vector2.new(xPos, yPos)
+                    box.Visible = true
                 end
             else
-                -- Se o ESP estiver desativado, remove o box da tela
-                if box then
-                    box.Visible = false
-                end
-            end
-        end)
-    end
-end
-
--- Função para limpar os Boxes quando o ESP for desativado
-local function ClearESP()
-    for player, box in pairs(ESPBoxes) do
-        if box then
-            box.Visible = false  -- Esconde a caixa
-        end
-    end
-    ESPBoxes = {}  -- Limpa a tabela de caixas
-end
-
--- Função para atualizar o ESP para todos os jogadores
-local function UpdateESP()
-    if ESPEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                player.CharacterAdded:Connect(function()
-                    DrawESP(player)  -- Aplica o ESP ao novo jogador que entra no jogo
-                end)
-                if player.Character then
-                    DrawESP(player)  -- Aplica o ESP ao jogador já presente
-                end
+                if ESPBoxes[player] then ESPBoxes[player].Visible = false end
             end
         end
-    else
-        ClearESP()  -- Limpa os ESPs quando desativado
     end
-end
+end)
 
 -- Toggle do Aimbot
 Aimingsec1:Toggle {
@@ -278,21 +257,55 @@ Aimingsec1:dropdown {
         AimbotKey = AvailableKeys[selectedKey] -- Define a nova tecla ou botão do mouse
     end
 }
--- Toggle para ativar/desativar o ESP
+-- 🔘 Toggle no menu
 Visualssec1:Toggle {
-    Name = "Enable ESP (Box)",
-    flag = "esp_toggle",
+    Name = "ESP Boxes",
+    flag = "esp_toggle", 
     callback = function(bool)
-        ESPEnabled = bool
-        UpdateESP()
+        _G.ESPEnabled = bool
+        if not bool then
+            RemoveESP()
+        end
     end
 }
 
--- Atualiza o ESP sempre que um jogador entra no jogo
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        if ESPEnabled then
-            DrawESP(player)  -- Aplica o ESP ao novo jogador
+-- 🎨 Opções de Cores para ESP e FOV
+local ColorOptions = {
+    {Name = "Vermelho", Color = Color3.fromRGB(255, 0, 0)},
+    {Name = "Verde", Color = Color3.fromRGB(0, 255, 0)},
+    {Name = "Azul", Color = Color3.fromRGB(0, 0, 255)},
+    {Name = "Amarelo", Color = Color3.fromRGB(255, 255, 0)},
+    {Name = "Roxo", Color = Color3.fromRGB(128, 0, 128)},
+    {Name = "Ciano", Color = Color3.fromRGB(0, 255, 255)},
+    {Name = "Branco", Color = Color3.fromRGB(255, 255, 255)}
+}
+
+-- 📦 Dropdown para selecionar cor do ESP
+Visualssec1:dropdown {
+    name = "Cor do ESP (BETA)",
+    content = {"Vermelho", "Verde", "Azul", "Amarelo", "Roxo", "Ciano", "Branco"},
+    multichoice = false,
+    callback = function(selected)
+        for _, option in ipairs(ColorOptions) do
+            if option.Name == selected then
+                _G.ESPColor = option.Color
+                break
+            end
         end
-    end)
-end)
+    end
+}
+
+-- 📦 Dropdown para selecionar cor do FOV
+Visualssec1:dropdown {
+    name = "Cor do FOV (BETA)",
+    content = {"Vermelho", "Verde", "Azul", "Amarelo", "Roxo", "Ciano", "Branco"},
+    multichoice = false,
+    callback = function(selected)
+        for _, option in ipairs(ColorOptions) do
+            if option.Name == selected then
+                _G.FOVColor = option.Color
+                break
+            end
+        end
+    end
+}
