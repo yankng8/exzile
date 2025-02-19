@@ -4,10 +4,10 @@ loadstring(game:HttpGet('https://raw.githubusercontent.com/drillygzzly/Roblox-UI
 local notif = loadstring(game:HttpGet("https://raw.githubusercontent.com/insanedude59/notiflib/main/main"))()
 
 
-notif:Notification("EXZILE Beta Version","Loading","GothamSemibold","Gotham",5) -- title: <string> description: <string> title font: <string> description font: <string> notification show time: <number>
+notif:Notification("EXZILE Dev Version","Loading","GothamSemibold","Gotham",5) -- title: <string> description: <string> title font: <string> description font: <string> notification show time: <number>
 
 local Library = initLibrary()
-local Window = Library:Load({name = "exzile Beta", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
+local Window = Library:Load({name = "exzile dev version", sizeX = 425, sizeY = 512, color = Color3.fromRGB(255, 255, 255)})
 
 local Tab = Window:Tab("Aiming")
 local Tab2 = Window:Tab("Visuals")
@@ -21,6 +21,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local Space = game:GetService("Workspace")
 
 -- ⚙️ Configurações do Aimbot
 local AimbotEnabled = false
@@ -129,70 +130,102 @@ local function GetClosestPlayer()
     return Target
 end
 
--- 🔴 Configurações do ESP
-_G.ESPEnabled = false
-_G.ESPColor = Color3.fromRGB(255, 0, 0)
+-- Configurações do ESP
+local Settings = {
+    Box_Color = Color3.fromRGB(255, 0, 0), -- Cor inicial
+    Box_Thickness = 2,
+    Team_Check = false,
+    Enabled = false -- Toggle do ESP
+}
 
-local ESPBoxes = {}
-
--- 🖌️ Criar e atualizar ESP Box
-local function CreateESP(player)
-    if ESPBoxes[player] then return end  -- Evita duplicatas
-
-    local box = Drawing.new("Square")
-    box.Color = _G.ESPColor
-    box.Thickness = 1
-    box.Filled = false
-    box.Transparency = 0.8
-    box.Visible = false
-
-    ESPBoxes[player] = box
+-- Função para criar linhas do ESP
+local function NewLine()
+    local line = Drawing.new("Line")
+    line.Visible = false
+    line.Color = Settings.Box_Color -- Sempre usa a cor escolhida no menu
+    line.Thickness = Settings.Box_Thickness
+    return line
 end
 
--- 🗑️ Remover ESP Box quando desativado
-local function RemoveESP()
-    for _, box in pairs(ESPBoxes) do
-        if box then
-            box:Remove()
-        end
+-- Função para atualizar a visibilidade do ESP
+local function Vis(lib, state)
+    for _, v in pairs(lib) do
+        v.Visible = state
     end
-    ESPBoxes = {}  -- Limpa a tabela
 end
 
--- 🔄 Loop de atualização do ESP
-RunService.RenderStepped:Connect(function()
-    if not _G.ESPEnabled then
-        RemoveESP()
-        return
+-- Função para atualizar a cor do ESP dinamicamente
+local function AtualizarCores(lib)
+    for _, line in pairs(lib) do
+        line.Color = Settings.Box_Color -- Aplica a cor do menu em tempo real
     end
+end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
-            local rootPart = player.Character.HumanoidRootPart
-            local head = player.Character.Head
+-- Loop para desenhar o ESP
+local function Main(plr)
+    repeat wait() until plr.Character and plr.Character:FindFirstChild("Humanoid")
 
-            local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            local headPos, _ = Camera:WorldToViewportPoint(head.Position)
+    local Library = {
+        TL1 = NewLine(), TL2 = NewLine(),
+        TR1 = NewLine(), TR2 = NewLine(),
+        BL1 = NewLine(), BL2 = NewLine(),
+        BR1 = NewLine(), BR2 = NewLine()
+    }
 
-            if onScreen then
-                local box = ESPBoxes[player] or CreateESP(player)
+    -- Atualização do ESP
+    local function Updater()
+        local c
+        c = game:GetService("RunService").RenderStepped:Connect(function()
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character.Humanoid.Health > 0 then
+                local Hum = plr.Character
+                local HumPos, vis = game:GetService("Workspace").CurrentCamera:WorldToViewportPoint(Hum.HumanoidRootPart.Position)
+                if vis then
+                    AtualizarCores(Library) -- Atualiza a cor do ESP
+                    Vis(Library, Settings.Enabled) -- Controla visibilidade do ESP
 
-                local height = math.abs(rootPos.Y - headPos.Y) * 2  -- Ajuste de altura da box
-                local width = height * 0.5  -- Largura proporcional ao corpo
-                local xPos = rootPos.X - (width / 2)
-                local yPos = rootPos.Y - (height / 2)
+                    -- Desenha as linhas do ESP
+                    local TL = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position + Vector3.new(-2, 3, 0))
+                    local TR = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position + Vector3.new(2, 3, 0))
+                    local BL = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position + Vector3.new(-2, -3, 0))
+                    local BR = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position + Vector3.new(2, -3, 0))
 
-                if box then
-                    box.Size = Vector2.new(width, height)
-                    box.Position = Vector2.new(xPos, yPos)
-                    box.Visible = true
+                    Library.TL1.From, Library.TL1.To = Vector2.new(TL.X, TL.Y), Vector2.new(TL.X + 5, TL.Y)
+                    Library.TL2.From, Library.TL2.To = Vector2.new(TL.X, TL.Y), Vector2.new(TL.X, TL.Y + 5)
+
+                    Library.TR1.From, Library.TR1.To = Vector2.new(TR.X, TR.Y), Vector2.new(TR.X - 5, TR.Y)
+                    Library.TR2.From, Library.TR2.To = Vector2.new(TR.X, TR.Y), Vector2.new(TR.X, TR.Y + 5)
+
+                    Library.BL1.From, Library.BL1.To = Vector2.new(BL.X, BL.Y), Vector2.new(BL.X + 5, BL.Y)
+                    Library.BL2.From, Library.BL2.To = Vector2.new(BL.X, BL.Y), Vector2.new(BL.X, BL.Y - 5)
+
+                    Library.BR1.From, Library.BR1.To = Vector2.new(BR.X, BR.Y), Vector2.new(BR.X - 5, BR.Y)
+                    Library.BR2.From, Library.BR2.To = Vector2.new(BR.X, BR.Y), Vector2.new(BR.X, BR.Y - 5)
+                else
+                    Vis(Library, false)
                 end
             else
-                if ESPBoxes[player] then ESPBoxes[player].Visible = false end
+                Vis(Library, false)
+                if not game:GetService("Players"):FindFirstChild(plr.Name) then
+                    for _, v in pairs(Library) do v:Remove() end
+                    c:Disconnect()
+                end
             end
-        end
+        end)
     end
+    coroutine.wrap(Updater)()
+end
+
+-- Criar ESP para todos os jogadores
+for _, v in pairs(game:GetService("Players"):GetPlayers()) do
+    if v ~= game.Players.LocalPlayer then
+        coroutine.wrap(Main)(v)
+    end
+end
+
+game:GetService("Players").PlayerAdded:Connect(function(newplr)
+    coroutine.wrap(Main)(newplr)
 end)
+
 
 -- Toggle do Aimbot
 Aimingsec1:Toggle {
@@ -257,41 +290,31 @@ Aimingsec1:dropdown {
         AimbotKey = AvailableKeys[selectedKey] -- Define a nova tecla ou botão do mouse
     end
 }
--- 🔘 Toggle no menu
+-- Toggle no menu
 Visualssec1:Toggle {
-    Name = "ESP Boxes",
+    Name = "3D ESP",
     flag = "esp_toggle", 
     callback = function(bool)
-        _G.ESPEnabled = bool
-        if not bool then
-            RemoveESP()
-        end
+        Settings.Enabled = bool
     end
 }
 
 -- 🎨 Opções de Cores para ESP e FOV
-local ColorOptions = {
-    {Name = "Vermelho", Color = Color3.fromRGB(255, 0, 0)},
-    {Name = "Verde", Color = Color3.fromRGB(0, 255, 0)},
-    {Name = "Azul", Color = Color3.fromRGB(0, 0, 255)},
-    {Name = "Amarelo", Color = Color3.fromRGB(255, 255, 0)},
-    {Name = "Roxo", Color = Color3.fromRGB(128, 0, 128)},
-    {Name = "Ciano", Color = Color3.fromRGB(0, 255, 255)},
-    {Name = "Branco", Color = Color3.fromRGB(255, 255, 255)}
+local colors = {
+    ["Vermelho"] = Color3.fromRGB(255, 0, 0),
+    ["Verde"] = Color3.fromRGB(0, 255, 0),
+    ["Azul"] = Color3.fromRGB(0, 0, 255),
+    ["Roxo"] = Color3.fromRGB(128, 0, 128),
+    ["Amarelo"] = Color3.fromRGB(255, 255, 0),
+    ["Branco"] = Color3.fromRGB(255, 255, 255)
 }
 
--- 📦 Dropdown para selecionar cor do ESP
+-- Criar Dropdown no Menu
 Visualssec1:dropdown {
-    name = "Cor do ESP (BETA)",
-    content = {"Vermelho", "Verde", "Azul", "Amarelo", "Roxo", "Ciano", "Branco"},
-    multichoice = false,
+    name = "ESP Color",
+    content = {"Vermelho", "Verde", "Azul", "Roxo", "Amarelo", "Branco"},
     callback = function(selected)
-        for _, option in ipairs(ColorOptions) do
-            if option.Name == selected then
-                _G.ESPColor = option.Color
-                break
-            end
-        end
+        Settings.Box_Color = colors[selected] or Color3.fromRGB(255, 0, 0) -- Atualiza a cor
     end
 }
 
